@@ -25,6 +25,7 @@ import (
 	gnosissafe "github.com/ivanzzeth/polymarket-go-contracts/v2/contracts/gnosis-safe-l2"
 	neg_risk_ctf_collateral_adapter "github.com/ivanzzeth/polymarket-go-contracts/v2/contracts/neg-risk-ctf-collateral-adapter"
 	neg_risk_v2 "github.com/ivanzzeth/polymarket-go-contracts/v2/contracts/neg-risk-v2"
+	negriskfees "github.com/ivanzzeth/polymarket-go-contracts/v2/contracts/neg-risk-fees"
 	permissioned_ramp "github.com/ivanzzeth/polymarket-go-contracts/v2/contracts/permissioned-ramp"
 	safeproxyfactory "github.com/ivanzzeth/polymarket-go-contracts/v2/contracts/safe-proxy-factory"
 	"github.com/ivanzzeth/ethsig/eip712"
@@ -94,8 +95,9 @@ type ContractInterfaceV2 struct {
 	statusTTL     time.Duration // Default 5 minutes
 
 	// Optional auto-routing fields (set via functional options)
-	signatureType     SignatureType
-	safeTradingSigner signer.SafeTradingSigner
+	signatureType      SignatureType
+	eoaTradingSigner   signer.EOATradingSigner
+	safeTradingSigner  signer.SafeTradingSigner
 }
 
 // ContractInterfaceV2Option configures optional fields on ContractInterfaceV2.
@@ -118,6 +120,17 @@ func WithV2SafeSigner(s signer.SafeTradingSigner) ContractInterfaceV2Option {
 		}
 		v.safeTradingSigner = s
 		v.signatureType = SignatureTypePolyGnosisSafe
+	}
+}
+
+// WithV2EOASigner sets the EOA trading signer for SignatureTypeEOA.
+func WithV2EOASigner(s signer.EOATradingSigner) ContractInterfaceV2Option {
+	return func(v *ContractInterfaceV2) {
+		if s == nil {
+			return
+		}
+		v.eoaTradingSigner = s
+		v.signatureType = SignatureTypeEOA
 	}
 }
 
@@ -349,7 +362,16 @@ func (v *ContractInterfaceV2) GetConfig() *ContractConfig                       
 func (v *ContractInterfaceV2) GetClient() ethclient.EthClientInterface                 { return v.client }
 func (v *ContractInterfaceV2) GetSafeProxyFactory() *safeproxyfactory.SafeProxyFactory { return v.safeProxyFactory }
 func (v *ContractInterfaceV2) GetSignatureType() SignatureType                         { return v.signatureType }
+func (v *ContractInterfaceV2) GetEOATradingSigner() signer.EOATradingSigner             { return v.eoaTradingSigner }
+func (v *ContractInterfaceV2) GetSafeTradingSigner() signer.SafeTradingSigner           { return v.safeTradingSigner }
 func (v *ContractInterfaceV2) GetChainID() *big.Int                                    { return v.chainID }
+
+// GetExchange returns the V2 exchange contract binding.
+func (v *ContractInterfaceV2) GetExchange() *exchange_v2.ExchangeV2 { return v.exchangeV2 }
+
+// GetNegRiskFees returns nil — V2 uses NegRiskExchangeV2's FeeCharged event
+// (not a separate NegRiskFees contract). Framework handles V2 fee events separately.
+func (v *ContractInterfaceV2) GetNegRiskFees() *negriskfees.NegRiskFees { return nil }
 
 // --- EnableTrading ---
 
